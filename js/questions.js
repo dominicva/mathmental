@@ -33,9 +33,10 @@ function def(id, cat, minLevel, gen) {
 /* ---------------- Arithmetic with structure ---------------- */
 
 def('add-sub', 'arith', 1, level => {
-  const max = level <= 2 ? 60 : level <= 4 ? 99 : 999;
-  let a = randInt(12, max);
-  let b = randInt(12, max);
+  const max = level <= 1 ? 20 : level <= 2 ? 60 : level <= 4 ? 99 : 999;
+  let a = randInt(level <= 1 ? 3 : 12, max);
+  let b = randInt(level <= 1 ? 3 : 12, max);
+  if (a === b) a += randInt(1, 5);
   if (Math.random() < 0.45) {
     if (b > a) [a, b] = [b, a];
     return {
@@ -54,8 +55,8 @@ def('add-sub', 'arith', 1, level => {
 });
 
 def('times-table', 'arith', 1, level => {
-  const a = level <= 2 ? randInt(3, 12) : randInt(13, 25);
-  const b = randInt(3, 9);
+  const a = level <= 1 ? randInt(2, 10) : level <= 2 ? randInt(3, 12) : randInt(13, 25);
+  const b = level <= 1 ? randInt(2, 6) : randInt(3, 9);
   return {
     prompt: `${a} × ${b}`,
     answer: a * b,
@@ -156,8 +157,19 @@ def('percent', 'arith', 3, level => {
 
 /* ---------------- Number theory ---------------- */
 
-def('last-digit-product', 'nt', 1, level => {
-  const max = level <= 3 ? 99 : 999;
+def('small-remainder', 'nt', 1, level => {
+  const d = randInt(2, level >= 3 ? 9 : 5);
+  const N = randInt(d + 1, level >= 3 ? 100 : 50);
+  return {
+    prompt: `What is the remainder when ${N} is divided by ${d}?`,
+    answer: N % d,
+    explain: `${d} × ${Math.floor(N / d)} = ${d * Math.floor(N / d)}, leaving ${N % d} over.`,
+    meta: { N, d },
+  };
+});
+
+def('last-digit-product', 'nt', 3, level => {
+  const max = level <= 4 ? 99 : 999;
   const a = randInt(12, max);
   const b = randInt(12, max);
   return {
@@ -168,7 +180,7 @@ def('last-digit-product', 'nt', 1, level => {
   };
 });
 
-def('digit-sum-remainder', 'nt', 2, level => {
+def('digit-sum-remainder', 'nt', 3, level => {
   const N = level >= 5 ? randInt(10000, 999999) : randInt(100, 9999);
   const m = choice([3, 9]);
   const digitSum = String(N).split('').reduce((s, d) => s + Number(d), 0);
@@ -367,7 +379,7 @@ def('vieta', 'alg', 6, level => {
 /* ---------------- Counting & probability ---------------- */
 
 def('arrangements', 'count', 1, level => {
-  const n = level >= 5 ? randInt(4, 6) : level >= 3 ? randInt(3, 5) : randInt(3, 4);
+  const n = level >= 5 ? randInt(4, 6) : level >= 3 ? randInt(3, 5) : level >= 2 ? randInt(3, 4) : 3;
   let f = 1;
   for (let i = 2; i <= n; i++) f *= i;
   return {
@@ -476,8 +488,8 @@ def('at-least-one', 'count', 7, level => {
 /* ---------------- Sequences & series ---------------- */
 
 def('next-arith', 'seq', 1, level => {
-  const d = level >= 3 ? choice([-1, 1]) * randInt(3, 12) : randInt(2, 9);
-  const start = level >= 3 ? randInt(-20, 40) : randInt(1, 20);
+  const d = level >= 3 ? choice([-1, 1]) * randInt(3, 12) : randInt(2, level >= 2 ? 9 : 5);
+  const start = level >= 3 ? randInt(-20, 40) : randInt(1, level >= 2 ? 20 : 10);
   const terms = [0, 1, 2, 3].map(i => start + i * d);
   return {
     prompt: `What is the next term: ${terms.join(', ')}, …?`,
