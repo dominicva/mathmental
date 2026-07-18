@@ -1,0 +1,11 @@
+{
+  "name": "mathmental",
+  "version": "0.1.0",
+  "description": "A two-player mental math quiz game with AoPS-flavored difficulty scaling",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "start": "python3 -m http.server 8080"
+  },
+  "license": "MIT"
+}
