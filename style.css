@@ -94,6 +94,21 @@ body {
 .level-out { font-weight: 700; }
 .timed-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
 .timed-row input { accent-color: var(--accent); width: 1.1rem; height: 1.1rem; }
+.mix-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+.mix-input {
+  font-size: 0.95rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
+}
 .rounds-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; }
 .rounds-input {
   font-size: 1rem;

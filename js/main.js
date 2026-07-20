@@ -1,15 +1,15 @@
 // UI + game flow. Screens: home/setup → duel (pass → question → feedback)* →
 // results, plus a solo streak mode.
 
-import { generateQuestion, generateShowdown, timerSeconds, CATEGORY_NAMES } from './questions.js';
+import { generateQuestion, generateShowdown, timerSeconds, CATEGORY_NAMES, MIX_NAMES } from './questions.js';
 import { parseAnswer, answersEqual, formatAnswer } from './util.js';
 
 const app = document.getElementById('app');
 
 const DEFAULT_SETTINGS = {
   players: [
-    { name: 'Player 1', level: 3, timed: false },
-    { name: 'Player 2', level: 6, timed: false },
+    { name: 'Player 1', level: 3, timed: false, mix: 'balanced' },
+    { name: 'Player 2', level: 6, timed: false, mix: 'balanced' },
   ],
   rounds: 10,
 };
@@ -30,6 +30,7 @@ function save(key, value) {
 }
 
 let settings = load('settings', DEFAULT_SETTINGS);
+settings.players.forEach(p => { if (!p.mix) p.mix = 'balanced'; });
 let stats = load('stats', { bestStreaks: {} });
 
 let duel = null;
@@ -72,6 +73,13 @@ function renderHome() {
             <input class="timed-input" type="checkbox" ${p.timed ? 'checked' : ''}>
             <span>Timer</span>
           </label>
+          <label class="mix-row">
+            <span>Style</span>
+            <select class="mix-input">
+              ${Object.entries(MIX_NAMES).map(([k, label]) =>
+                `<option value="${k}" ${p.mix === k ? 'selected' : ''}>${label}</option>`).join('')}
+            </select>
+          </label>
         </div>
       `).join('')}
       <label class="rounds-row">
@@ -106,6 +114,7 @@ function renderHome() {
       settings.players[i].name = div.querySelector('.name-input').value.trim() || `Player ${i + 1}`;
       settings.players[i].level = Number(div.querySelector('.level-input').value);
       settings.players[i].timed = div.querySelector('.timed-input').checked;
+      settings.players[i].mix = div.querySelector('.mix-input').value;
     });
     settings.rounds = Number(app.querySelector('.rounds-input').value);
     save('settings', settings);
@@ -146,11 +155,11 @@ function prepareRound() {
   const [a, b] = duel.players;
   duel.showdown = Math.random() < 0.25;
   if (duel.showdown) {
-    const pair = generateShowdown(a.level, b.level, [a.lastTemplate, b.lastTemplate]);
+    const pair = generateShowdown(a.level, b.level, [a.lastTemplate, b.lastTemplate], [a.mix, b.mix]);
     duel.questions = pair.questions;
   } else {
     duel.questions = duel.players.map(p =>
-      generateQuestion(p.level, { lastId: p.lastTemplate }));
+      generateQuestion(p.level, { lastId: p.lastTemplate, mix: p.mix }));
   }
   duel.players.forEach((p, i) => { p.lastTemplate = duel.questions[i].templateId; });
 }
@@ -277,7 +286,7 @@ function startStreak(playerIndex) {
 }
 
 function nextStreakQuestion() {
-  streak.question = generateQuestion(streak.player.level, { lastId: streak.lastTemplate });
+  streak.question = generateQuestion(streak.player.level, { lastId: streak.lastTemplate, mix: streak.player.mix });
   streak.lastTemplate = streak.question.templateId;
   renderQuestion({
     question: streak.question,

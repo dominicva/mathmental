@@ -17,7 +17,8 @@ import {
 } from './util.js';
 
 export const CATEGORY_NAMES = {
-  arith: 'Arithmetic',
+  calc: 'Mental arithmetic',
+  arith: 'Arithmetic tricks',
   nt: 'Number theory',
   alg: 'Algebra',
   count: 'Counting & probability',
@@ -29,6 +30,137 @@ export const TEMPLATES = [];
 function def(id, cat, minLevel, gen) {
   TEMPLATES.push({ id, cat, minLevel, gen });
 }
+
+/* ---------------- Mental arithmetic (raw computation) ----------------
+   No tricks required — difficulty scales with operand size and carries.
+   This is the Zetamac-style drill category. */
+
+function calcRange(level) {
+  if (level <= 1) return [3, 20];
+  if (level <= 2) return [11, 60];
+  if (level <= 4) return [12, 99];
+  if (level <= 6) return [102, 998];
+  return [1002, 9998];
+}
+
+def('calc-add-sub', 'calc', 1, level => {
+  const [lo, hi] = calcRange(level);
+  let a = randInt(lo, hi);
+  let b = randInt(lo, hi);
+  if (a === b) a += randInt(1, 5);
+  if (Math.random() < 0.45) {
+    if (b > a) [a, b] = [b, a];
+    return {
+      prompt: `${fmt(a)} − ${fmt(b)}`,
+      answer: a - b,
+      explain: `Subtract in parts, biggest place value first: ${fmt(a)} − ${fmt(b)} = ${fmt(a - b)}.`,
+      meta: { a, b, op: 'sub' },
+    };
+  }
+  return {
+    prompt: `${fmt(a)} + ${fmt(b)}`,
+    answer: a + b,
+    explain: `Add place by place, biggest first: ${fmt(a)} + ${fmt(b)} = ${fmt(a + b)}.`,
+    meta: { a, b, op: 'add' },
+  };
+});
+
+def('calc-chain', 'calc', 3, level => {
+  const nTerms = level >= 7 ? 4 : 3;
+  const [lo, hi] = level >= 9 ? [21, 199] : [11, 99];
+  const terms = [randInt(lo, hi)];
+  const signs = ['+'];
+  let running = terms[0];
+  for (let i = 1; i < nTerms; i++) {
+    const t = randInt(lo, hi);
+    // keep the running total non-negative so it stays mental-friendly
+    const minus = level >= 5 && Math.random() < 0.5 && running - t >= 0;
+    signs.push(minus ? '−' : '+');
+    running += minus ? -t : t;
+    terms.push(t);
+  }
+  const prompt = terms.map((t, i) => (i === 0 ? `${t}` : ` ${signs[i]} ${t}`)).join('');
+  return {
+    prompt,
+    answer: running,
+    explain: `Keep a running total left to right: ${prompt} = ${fmt(running)}.`,
+    meta: { terms, signs },
+  };
+});
+
+def('calc-mul', 'calc', 2, level => {
+  let a = 0;
+  let b = 0;
+  if (level <= 3) { a = randInt(12, 49); b = randInt(3, 9); }
+  else if (level <= 5) { a = randInt(12, 99); b = randInt(3, 9); }
+  else if (level <= 7) {
+    if (Math.random() < 0.5) { a = randInt(102, 999); b = randInt(3, 9); }
+    else { a = randInt(12, 29); b = randInt(12, 29); }
+  } else {
+    a = randInt(23, 98); b = randInt(23, 98);
+  }
+  const bTens = Math.floor(b / 10) * 10;
+  const split = b >= 10
+    ? `${a} × ${b} = ${a} × ${bTens} + ${a} × ${b % 10} = ${fmt(a * bTens)} + ${fmt(a * (b % 10))} = ${fmt(a * b)}.`
+    : `${a} × ${b} = ${fmt(Math.floor(a / 10) * 10)} × ${b} + ${a % 10} × ${b} = ${fmt(Math.floor(a / 10) * 10 * b)} + ${(a % 10) * b} = ${fmt(a * b)}.`;
+  return {
+    prompt: `${fmt(a)} × ${b}`,
+    answer: a * b,
+    explain: `Distribute over place values: ${split}`,
+    meta: { a, b, op: 'mul' },
+  };
+});
+
+def('calc-div', 'calc', 3, level => {
+  let d = 0;
+  let q = 0;
+  if (level <= 4) { d = randInt(3, 9); q = randInt(11, 25); }
+  else if (level <= 6) { d = randInt(3, 9); q = randInt(26, 99); }
+  else if (level <= 8) { d = randInt(11, 19); q = randInt(11, 40); }
+  else { d = randInt(12, 29); q = randInt(25, 99); }
+  const N = d * q;
+  return {
+    prompt: `${fmt(N)} ÷ ${d}`,
+    answer: q,
+    explain: `Ask "${d} times what makes ${fmt(N)}?" — build it up: ${d} × ${q} = ${fmt(N)}, so the answer is ${q}.`,
+    meta: { N, d, q },
+  };
+});
+
+def('calc-double-half', 'calc', 2, level => {
+  const [lo, hi] = level <= 3 ? [12, 49] : level <= 5 ? [51, 499] : [501, 4999];
+  if (Math.random() < 0.5) {
+    const m = randInt(lo, hi);
+    const n = 2 * m;
+    return {
+      prompt: `What is half of ${fmt(n)}?`,
+      answer: m,
+      explain: `Halve each part: half of ${fmt(n)} is ${fmt(m)}.`,
+      meta: { n, op: 'half' },
+    };
+  }
+  const n = randInt(lo, hi);
+  return {
+    prompt: `What is double ${fmt(n)}?`,
+    answer: 2 * n,
+    explain: `Double each part: 2 × ${fmt(n)} = ${fmt(2 * n)}.`,
+    meta: { n, op: 'double' },
+  };
+});
+
+def('calc-square', 'calc', 7, level => {
+  // General 2-digit squares; multiples of 5/10 belong to the trick templates.
+  let n = 0;
+  do { n = level >= 9 ? randInt(31, 79) : randInt(13, 39); } while (n % 5 === 0);
+  const r = Math.round(n / 10) * 10;
+  const d = n - r;
+  return {
+    prompt: `${n}²`,
+    answer: n * n,
+    explain: `Work from the nearest round number: (${r} ${d >= 0 ? '+' : '−'} ${Math.abs(d)})² = ${fmt(r * r)} ${d >= 0 ? '+' : '−'} ${fmt(Math.abs(2 * r * d))} + ${d * d} = ${fmt(n * n)}.`,
+    meta: { a: n, b: n, op: 'mul' },
+  };
+});
 
 /* ---------------- Arithmetic with structure ---------------- */
 
@@ -565,11 +697,36 @@ def('telescope', 'seq', 7, level => {
 
 const CATEGORY_KEYS = Object.keys(CATEGORY_NAMES);
 
+// Per-player question style: category weights for selection.
+export const MIXES = {
+  balanced: Object.fromEntries(CATEGORY_KEYS.map(k => [k, 1 / CATEGORY_KEYS.length])),
+  arithmetic: { calc: 0.7, arith: 0.075, nt: 0.05, alg: 0.05, count: 0.05, seq: 0.075 },
+  conceptual: { calc: 0, arith: 0.2, nt: 0.2, alg: 0.2, count: 0.2, seq: 0.2 },
+};
+
+export const MIX_NAMES = {
+  balanced: 'Balanced',
+  arithmetic: 'Mental arithmetic',
+  conceptual: 'Conceptual',
+};
+
+function pickCategory(weights) {
+  let r = Math.random() * CATEGORY_KEYS.reduce((s, k) => s + (weights[k] ?? 0), 0);
+  for (const k of CATEGORY_KEYS) {
+    r -= weights[k] ?? 0;
+    if (r <= 0) return k;
+  }
+  return CATEGORY_KEYS[0];
+}
+
 function pickTemplate(level, category, lastId) {
   const pool = TEMPLATES.filter(t => t.cat === category && t.minLevel <= level);
   // Weight toward recently-unlocked techniques so higher levels feel different,
   // not just bigger; keep old templates around at low weight for variety.
+  // Raw-calculation templates scale their operands with level and never go
+  // stale, so they stay uniformly weighted.
   const weights = pool.map(t => {
+    if (t.cat === 'calc') return 1;
     const staleness = level - t.minLevel;
     return (1 + t.minLevel) * (staleness >= 5 ? 0.3 : 1);
   });
@@ -586,16 +743,22 @@ function pickTemplate(level, category, lastId) {
   return t;
 }
 
-export function generateQuestion(level, { category, lastId } = {}) {
-  const cat = category ?? choice(CATEGORY_KEYS);
+export function generateQuestion(level, { category, lastId, mix } = {}) {
+  const cat = category ?? pickCategory(MIXES[mix] ?? MIXES.balanced);
   const t = pickTemplate(level, cat, lastId);
   return { ...t.gen(level), category: t.cat, templateId: t.id, level };
 }
 
 // Same template instantiated at two (possibly different) levels.
-export function generateShowdown(levelA, levelB, lastIds = []) {
+export function generateShowdown(levelA, levelB, lastIds = [], mixes = []) {
   const minLevel = Math.min(levelA, levelB);
-  const cat = choice(CATEGORY_KEYS);
+  const wa = MIXES[mixes[0]] ?? MIXES.balanced;
+  const wb = MIXES[mixes[1]] ?? MIXES.balanced;
+  // Product of the two players' weights: a category either player opted out
+  // of is never used for a shared showdown round.
+  const combined = Object.fromEntries(
+    CATEGORY_KEYS.map(k => [k, (wa[k] ?? 0) * (wb[k] ?? 0)]));
+  const cat = pickCategory(combined);
   const t = pickTemplate(minLevel, cat, lastIds[0]);
   const qa = { ...t.gen(levelA), category: t.cat, templateId: t.id, level: levelA };
   let qb = { ...t.gen(levelB), category: t.cat, templateId: t.id, level: levelB };

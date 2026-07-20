@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TEMPLATES, generateQuestion, generateShowdown, CATEGORY_NAMES } from '../js/questions.js';
+import { TEMPLATES, generateQuestion, generateShowdown, CATEGORY_NAMES, MIXES } from '../js/questions.js';
 import { parseAnswer, answersEqual, modpow } from '../js/util.js';
 
 function isValidAnswer(a) {
@@ -105,6 +105,36 @@ test('odd/even and multiples sums match loops', () => {
     let sum = 0;
     for (let i = 1; i <= q.meta.k; i++) sum += q.meta.m * i;
     assert.equal(q.answer, sum, q.prompt);
+  }
+});
+
+test('mix weights control category selection', () => {
+  for (let i = 0; i < 400; i++) {
+    const q = generateQuestion(1 + (i % 10), { mix: 'conceptual' });
+    assert.notEqual(q.category, 'calc', 'conceptual mix must never serve raw calculation');
+  }
+  let calcCount = 0;
+  for (let i = 0; i < 600; i++) {
+    if (generateQuestion(5, { mix: 'arithmetic' }).category === 'calc') calcCount++;
+  }
+  // Expected 70%; allow generous slack for randomness.
+  assert.ok(calcCount > 300, `arithmetic mix served calc only ${calcCount}/600 times`);
+  for (const weights of Object.values(MIXES)) {
+    const total = Object.values(weights).reduce((a, b) => a + b, 0);
+    assert.ok(Math.abs(total - 1) < 1e-9, 'mix weights must sum to 1');
+  }
+});
+
+test('calc-div always divides exactly and calc-chain matches its terms', () => {
+  for (const q of genMany('calc-div')) {
+    assert.equal(q.meta.N % q.meta.d, 0);
+    assert.equal(q.answer, q.meta.N / q.meta.d);
+  }
+  for (const q of genMany('calc-chain')) {
+    let sum = 0;
+    q.meta.terms.forEach((t, i) => { sum += q.meta.signs[i] === '−' ? -t : t; });
+    assert.equal(q.answer, sum, q.prompt);
+    assert.ok(q.answer >= 0, `negative chain result: ${q.prompt}`);
   }
 });
 
